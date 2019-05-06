@@ -1,2 +1,2 @@
-- more checks on operations: read from file, connect to telnet, etc..
 - add connectionreset exception
+- use wait time parameter integrated in telnet instead of manual sleep
