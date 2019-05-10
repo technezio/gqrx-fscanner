@@ -5,9 +5,9 @@
 ################################################################################
 
 from time import sleep
-import telnetlib
 import csv
 import sys,os
+import gqrxInterface	# must be in the same folder
 
 HOST = "127.0.0.1"
 PORT = 7356
@@ -33,25 +33,10 @@ def parse_bookmarks(lf, hf):
 	
 	return tmp_freq
 
-def send_cmd(s):
-	'''Send a command via telnet and return the answer'''
-
-	cmd = s + '\n'
-	cmd = cmd.encode('UTF-8')
-	tn.write(cmd)
-	sleep(0.1)		# Wait answer
-	try:
-		a = tn.read_eager()
-	except EOFError:
-		print("Connection closed")
-		sys.exit(1)
-	
-	return a.decode('UTF-8')
-
 ###---------------------------------- MAIN ----------------------------------###
 FREQ = []
 index = 0
-TIME_SLOT = 0.3		# seconds between skips
+TIME_SLOT = 0.1		# seconds between skips
 
 if len(sys.argv) == 2:
 	# Read from txt
@@ -78,22 +63,22 @@ if len(FREQ) == 0:
     print("No frequencies given")
     sys.exit(1)
 
-# Open telnet connection with gqrx
+# Open connection with gqrx
 try:
-	tn = telnetlib.Telnet(HOST, PORT)
+	gqrx_conn = gqrxInterface.Gqrx(HOST, PORT)
 except ConnectionRefusedError:
 	print("Connection refused\nCheck gqrx network settings")
 	sys.exit(1)
 
 while(1):
-	sql = send_cmd("l SQL")			# read SQUELCH level
+	sql = gqrx_conn.get_squelch()			# read SQUELCH level
 	try:
 		sql = float(sql)
 	except:
 		sql = 0		# in case of misreadings, squelch HIGH
 		print("Error. sql=", sql)	# DEBUG
 	
-	sig = send_cmd("l STRENGTH")	# read SIGNAL strength
+	sig = gqrx_conn.get_signal()	# read SIGNAL strength
 	try:
 		sig = float(sig)
 	except:
@@ -102,8 +87,7 @@ while(1):
 	
 	# if signal strength < squelch level: skip to next FREQ
 	if sig <= sql:
-		c = "F " + FREQ[index]
+		gqrx_conn.set_frequency(int(FREQ[index]))
 		index = (index + 1) % len(FREQ)		# circular list
-		send_cmd(c)
 	
 	sleep(TIME_SLOT)
